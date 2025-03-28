@@ -1,3 +1,4 @@
 flask
-pytube
+google-api-python-client
+yt-dlp
 gunicorn

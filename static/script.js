@@ -81,7 +81,12 @@ function downloadVideo() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            status.textContent = 'تم التحميل! رابط التحميل: ' + data.download_link;
+            const downloadLink = document.createElement('a');
+            downloadLink.href = data.download_link;
+            downloadLink.textContent = 'اضغط هنا لتحميل الفيديو';
+            downloadLink.style.color = '#ffeb3b';
+            status.innerHTML = 'تم التحميل! ';
+            status.appendChild(downloadLink);
         } else {
             status.textContent = 'حدث خطأ: ' + data.error;
         }
