@@ -1,8 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file  # أضفنا send_file هنا
 import yt_dlp
 import os
 import logging
-import urllib.parse  # للتعامل مع أسماء الملفات
+import urllib.parse
 
 # إعداد التسجيل (Logging)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -71,7 +71,8 @@ def serve_file(filename):
             logger.error(f"File not found: {file_path}")
             return jsonify({'success': False, 'error': f'الملف {filename} غير موجود'}), 404
 
-        return app.send_file(file_path, as_attachment=True)
+        # استخدام send_file مباشرة بدلاً من app.send_file
+        return send_file(file_path, as_attachment=True)
 
     except Exception as e:
         logger.error(f"Error serving file {filename}: {str(e)}", exc_info=True)
