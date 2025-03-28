@@ -1,13 +1,8 @@
 from flask import Flask, request, jsonify
-from googleapiclient.discovery import build
 import yt_dlp
 import os
 
 app = Flask(__name__)
-
-# استخدام مفتاح API الخاص بك
-YOUTUBE_API_KEY = 'AIzaSyCoGcU17wqXryWrheUHZc6om-3zj84_8YU'
-youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
 @app.route('/')
 def home():
@@ -19,22 +14,18 @@ def download():
     url = data.get('url')
 
     try:
-        # استخراج معرف الفيديو من الرابط
-        video_id = url.split('v=')[1]
-        if '&' in video_id:
-            video_id = video_id.split('&')[0]
-
-        # استخدام YouTube API للتحقق من الفيديو
-        request = youtube.videos().list(part='snippet', id=video_id)
-        response = request.execute()
-
-        if not response['items']:
-            return jsonify({'success': False, 'error': 'الفيديو غير موجود'})
-
-        # تحميل الفيديو باستخدام yt-dlp
+        # إعدادات yt-dlp مع رؤوس HTTP لمحاكاة متصفح حقيقي
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',  # حفظ الفيديو في مجلد downloads
             'format': 'best',  # اختيار أفضل جودة
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': 'https://www.google.com/',
+            },
+            # (اختياري) إذا كنت بحاجة إلى تسجيل الدخول، أضف ملف تعريف الارتباط
+            # 'cookiefile': 'cookies.txt',  # استبدل بمسار ملف تعريف الارتباط
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
