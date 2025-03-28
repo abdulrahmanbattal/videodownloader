@@ -1,17 +1,25 @@
 from flask import Flask, request, jsonify
 import yt_dlp
 import os
+import logging
+import urllib.parse  # للتعامل مع أسماء الملفات
+
+# إعداد التسجيل (Logging)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
+    logger.info("Serving index.html")
     return app.send_static_file('index.html')
 
 @app.route('/download', methods=['POST'])
 def download():
     data = request.get_json()
     url = data.get('url')
+    logger.info(f"Received download request for URL: {url}")
 
     try:
         # إعدادات yt-dlp مع رؤوس HTTP لمحاكاة متصفح حقيقي
@@ -25,28 +33,51 @@ def download():
                 'Referer': 'https://www.google.com/',
             },
             # (اختياري) استخدام ملف تعريف الارتباط إذا كنت بحاجة إلى تسجيل الدخول
-            # 'cookiefile': 'cookies.txt',  # أزل التعليق إذا كنت تستخدم ملف تعريف الارتباط
+            # 'cookiefile': 'cookies.txt',
             # (اختياري) استخدام بيانات تسجيل الدخول عبر متغيرات بيئية
             # 'username': os.getenv('INSTAGRAM_USERNAME'),
             # 'password': os.getenv('INSTAGRAM_PASSWORD'),
         }
 
+        logger.info("Starting video download with yt-dlp")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
-            download_link = f"/downloads/{os.path.basename(file_path)}"
+            logger.info(f"File path after download: {file_path}")
+            # التأكد من أن الملف موجود
+            if not os.path.exists(file_path):
+                logger.error(f"File not found after download: {file_path}")
+                return jsonify({'success': False, 'error': 'فشل في تحميل الفيديو: الملف غير موجود'}), 500
+            download_link = f"/downloads/{urllib.parse.quote(os.path.basename(file_path))}"
+            logger.info(f"Video downloaded successfully. Download link: {download_link}")
 
         return jsonify({'success': True, 'download_link': download_link})
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error downloading video: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # توفير الملفات المحملة للتنزيل
-@app.route('/downloads/<filename>')
+@app.route('/downloads/<path:filename>')
 def serve_file(filename):
-    return app.send_file(f'downloads/{filename}', as_attachment=True)
+    try:
+        # فك تشفير اسم الملف للتعامل مع المسافات والأحرف الخاصة
+        filename = urllib.parse.unquote(filename)
+        file_path = os.path.join('downloads', filename)
+        logger.info(f"Serving file: {file_path}")
+
+        # التحقق من وجود الملف
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return jsonify({'success': False, 'error': f'الملف {filename} غير موجود'}), 404
+
+        return app.send_file(file_path, as_attachment=True)
+
+    except Exception as e:
+        logger.error(f"Error serving file {filename}: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
-        os.makedirs('downloads')
+        os.makedirs('downloads', mode=0o777)  # إنشاء المجلد بأذونات كاملة
     app.run(debug=True, host='0.0.0.0', port=5000)
