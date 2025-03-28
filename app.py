@@ -22,7 +22,8 @@ def download():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# تشغيل الخادم المدمج فقط إذا تم تشغيل الملف مباشرة (محليًا)
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
         os.makedirs('downloads')
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
