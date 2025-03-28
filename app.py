@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file  # أضفنا send_file هنا
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
 import os
 import logging
@@ -32,16 +32,22 @@ def download():
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Referer': 'https://www.google.com/',
             },
-            # (اختياري) استخدام ملف تعريف الارتباط إذا كنت بحاجة إلى تسجيل الدخول
-            # 'cookiefile': 'cookies.txt',
-            # (اختياري) استخدام بيانات تسجيل الدخول عبر متغيرات بيئية
-            # 'username': os.getenv('INSTAGRAM_USERNAME'),
-            # 'password': os.getenv('INSTAGRAM_PASSWORD'),
+            # استخدام username وpassword لإنستغرام
+            'username': os.getenv('INSTAGRAM_USERNAME'),
+            'password': os.getenv('INSTAGRAM_PASSWORD'),
+            # استخدام ملف تعريف الارتباط ليوتيوب
+            'cookiefile': 'cookies.txt',
+            # إعدادات إضافية لتحسين التعامل مع يوتيوب
+            'noplaylist': True,  # تحميل الفيديو الفردي فقط
+            'ignoreerrors': True,  # تجاهل الأخطاء البسيطة
         }
 
         logger.info("Starting video download with yt-dlp")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
+            if not info:
+                logger.error("Failed to extract video info")
+                return jsonify({'success': False, 'error': 'فشل في استخراج معلومات الفيديو'}), 500
             file_path = ydl.prepare_filename(info)
             logger.info(f"File path after download: {file_path}")
             # التأكد من أن الملف موجود
@@ -71,7 +77,6 @@ def serve_file(filename):
             logger.error(f"File not found: {file_path}")
             return jsonify({'success': False, 'error': f'الملف {filename} غير موجود'}), 404
 
-        # استخدام send_file مباشرة بدلاً من app.send_file
         return send_file(file_path, as_attachment=True)
 
     except Exception as e:
@@ -81,4 +86,7 @@ def serve_file(filename):
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
         os.makedirs('downloads', mode=0o777)  # إنشاء المجلد بأذونات كاملة
+    # التأكد من أذونات ملف cookies.txt
+    if os.path.exists('cookies.txt'):
+        os.chmod('cookies.txt', 0o666)  # إعطاء أذونات قراءة وكتابة
     app.run(debug=True, host='0.0.0.0', port=5000)
